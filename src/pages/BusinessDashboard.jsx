@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { usePrivy } from '@privy-io/react-auth'
 import { useApp } from '../context/AppContext'
 import { createPayrollService } from '../services/payroll'
@@ -32,7 +32,9 @@ export default function BusinessDashboard() {
     loading,
     setLoading,
     getSigner,
-    fetchBalances
+    fetchBalances,
+    loadOrCreateBusiness,
+    businessId
   } = useApp()
 
   const [editingSalary, setEditingSalary] = useState(null)
@@ -52,18 +54,27 @@ export default function BusinessDashboard() {
   const [businessName, setBusinessName] = useState(businessData.name)
   const [isSettingUp, setIsSettingUp] = useState(!businessData.name)
 
-  const handleSetupBusiness = (e) => {
+  // Load existing business data when wallet connects
+  useEffect(() => {
+    if (walletAddress && authenticated) {
+      loadOrCreateBusiness(walletAddress, null)
+    }
+  }, [walletAddress, authenticated])
+
+  const handleSetupBusiness = async (e) => {
     e.preventDefault()
-    if (businessName.trim()) {
-      setBusinessData(prev => ({ ...prev, name: businessName.trim() }))
+    if (businessName.trim() && walletAddress) {
+      await loadOrCreateBusiness(walletAddress, businessName.trim())
       setIsSettingUp(false)
     }
   }
 
-  const handleGenerateCode = () => {
-    const code = createInviteCode()
-    setLatestCode(code)
-    setShowNewCode(true)
+  const handleGenerateCode = async () => {
+    const code = await createInviteCode()
+    if (code) {
+      setLatestCode(code)
+      setShowNewCode(true)
+    }
   }
 
   const handleCopyCode = async (code) => {

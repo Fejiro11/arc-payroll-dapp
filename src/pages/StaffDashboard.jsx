@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { usePrivy } from '@privy-io/react-auth'
 import { useApp } from '../context/AppContext'
@@ -16,7 +16,14 @@ import {
 
 export default function StaffDashboard() {
   const { authenticated, login } = usePrivy()
-  const { staffData, balances, walletAddress, updateStaffPreference } = useApp()
+  const { staffData, balances, walletAddress, updateStaffPreference, loadStaffData } = useApp()
+
+  // Load staff data when wallet connects
+  useEffect(() => {
+    if (walletAddress && authenticated) {
+      loadStaffData(walletAddress)
+    }
+  }, [walletAddress, authenticated])
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Never'

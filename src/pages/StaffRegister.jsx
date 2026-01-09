@@ -45,10 +45,7 @@ export default function StaffRegister() {
       return
     }
 
-    // Simulate registration delay
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    const success = registerWithCode(inviteCode.toUpperCase(), name.trim())
+    const success = await registerWithCode(inviteCode.toUpperCase(), name.trim())
     
     if (success) {
       setStep(3)
