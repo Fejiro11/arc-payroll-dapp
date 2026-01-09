@@ -116,41 +116,26 @@ export default function BusinessDashboard() {
       // Get selected staff details
       const staffToPayList = businessData.staff.filter(s => selectedStaff.includes(s.id))
       
-      // Try to use real blockchain if signer is available
-      try {
-        const payrollService = await createPayrollService(getSigner)
-        
-        // Build staff preferences map (admin doesn't see this - privacy preserved)
-        // In production, this would be fetched from a private store
-        const staffPreferences = {}
-        staffToPayList.forEach(s => {
-          // Staff preference is private - admin never sees this
-          staffPreferences[s.wallet] = s.preferUSYC || false
-        })
+      const payrollService = await createPayrollService(getSigner)
+      
+      // Build staff preferences map (admin doesn't see this - privacy preserved)
+      const staffPreferences = {}
+      staffToPayList.forEach(s => {
+        // Staff preference is private - admin never sees this
+        staffPreferences[s.wallet] = s.preferUSYC || false
+      })
 
-        const result = await payrollService.runPayroll(staffToPayList, staffPreferences)
-        
-        setPayrollResult({
-          hash: result.hash,
-          staffPaid: result.staffPaid,
-          totalAmount: result.totalAmount
-        })
-      } catch (blockchainError) {
-        console.log('Blockchain not available, using mock:', blockchainError.message)
-        // Fallback to mock for demo purposes
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        setPayrollResult({
-          hash: '0x' + Math.random().toString(16).slice(2, 66),
-          staffPaid: staffToPayList.length,
-          totalAmount: totalPayroll.toString(),
-          mock: true
-        })
-      }
+      const result = await payrollService.runPayroll(staffToPayList, staffPreferences)
+      
+      setPayrollResult({
+        hash: result.hash,
+        staffPaid: result.staffPaid,
+        totalAmount: result.totalAmount
+      })
       
       // Update last payment for selected staff
       setBusinessData(prev => ({
         ...prev,
-        treasuryBalance: (parseFloat(prev.treasuryBalance) - totalPayroll).toString(),
         staff: prev.staff.map(s => 
           selectedStaff.includes(s.id) 
             ? { ...s, lastPayment: new Date().toISOString() }
@@ -158,10 +143,15 @@ export default function BusinessDashboard() {
         )
       }))
       
+      // Refresh balance after payroll
+      if (walletAddress) {
+        fetchBalances(walletAddress)
+      }
+      
       setSelectedStaff([])
     } catch (error) {
       console.error('Payroll error:', error)
-      setPayrollError(error.message || 'Failed to run payroll')
+      setPayrollError(error.message || 'Failed to run payroll. Make sure you have enough USDC.')
     } finally {
       setIsRunningPayroll(false)
     }
@@ -320,9 +310,6 @@ export default function BusinessDashboard() {
               <div className="flex items-center space-x-2 mb-2">
                 <CheckCircle className="w-5 h-5 text-green-600" />
                 <h3 className="font-semibold text-green-900">Payroll Completed</h3>
-                {payrollResult.mock && (
-                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">Demo Mode</span>
-                )}
               </div>
               <p className="text-green-700 text-sm mb-3">
                 Successfully paid {payrollResult.staffPaid} staff member{payrollResult.staffPaid > 1 ? 's' : ''} a total of{' '}

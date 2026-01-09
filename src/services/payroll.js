@@ -28,42 +28,46 @@ export class PayrollService {
   }
 
   async runPayroll(staffList, staffPreferences) {
-    const calls = []
-    const iface = new ethers.Interface(ERC20_ABI)
-    const tellerIface = new ethers.Interface(USYC_TELLER_ABI)
-
+    const signerAddress = await this.signer.getAddress()
     let totalUSDC = 0n
 
+    // Calculate total USDC needed
     for (const staff of staffList) {
       const salaryWei = ethers.parseUnits(staff.salary.toString(), 6)
       totalUSDC += salaryWei
+    }
 
-      const prefersUSYC = staffPreferences[staff.wallet] || false
+    // For single staff: use direct transfer (simpler, less gas)
+    if (staffList.length === 1) {
+      const staff = staffList[0]
+      const salaryWei = ethers.parseUnits(staff.salary.toString(), 6)
+      
+      const tx = await this.usdcContract.transfer(staff.wallet, salaryWei)
+      const receipt = await tx.wait()
 
-      if (prefersUSYC) {
-        // For USYC preference: 
-        // 1. Approve USYC Teller to spend USDC
-        // 2. Deposit USDC to get USYC
-        // 3. Transfer USYC to staff
-        // Note: In production, this would be more complex with proper routing
-        // For testnet demo, we'll do a direct USDC transfer then mock the swap
-        calls.push({
-          target: CONTRACTS.USDC,
-          allowFailure: false,
-          callData: iface.encodeFunctionData('transfer', [staff.wallet, salaryWei])
-        })
-      } else {
-        // Direct USDC transfer
-        calls.push({
-          target: CONTRACTS.USDC,
-          allowFailure: false,
-          callData: iface.encodeFunctionData('transfer', [staff.wallet, salaryWei])
-        })
+      return {
+        hash: receipt.hash,
+        staffPaid: 1,
+        totalAmount: ethers.formatUnits(totalUSDC, 6)
       }
     }
 
-    // Check allowance and approve if needed
-    const signerAddress = await this.signer.getAddress()
+    // For multiple staff: use Multicall3 with transferFrom for batch efficiency
+    const iface = new ethers.Interface(ERC20_ABI)
+    const calls = []
+
+    // Build batch transfer calls using transferFrom
+    for (const staff of staffList) {
+      const salaryWei = ethers.parseUnits(staff.salary.toString(), 6)
+      
+      calls.push({
+        target: CONTRACTS.USDC,
+        allowFailure: false,
+        callData: iface.encodeFunctionData('transferFrom', [signerAddress, staff.wallet, salaryWei])
+      })
+    }
+
+    // Approve Multicall3 to spend USDC (for transferFrom to work)
     const currentAllowance = await this.usdcContract.allowance(signerAddress, CONTRACTS.MULTICALL3)
     
     if (currentAllowance < totalUSDC) {
