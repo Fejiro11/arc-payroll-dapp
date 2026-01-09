@@ -47,12 +47,15 @@ export default function LandingPage() {
             <span>Live on Arc Testnet</span>
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            B2B Payroll with{' '}
-            <span className="text-primary-600">Privacy-First</span> Preferences
+            Get paid. Stay flexible.{' '}
+            <span className="text-primary-600">Decide later.</span>
           </h1>
-          <p className="text-lg sm:text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
-            Run payroll on-chain. Staff can privately opt-in to receive salary in USYC 
-            (yield-bearing stablecoin) instead of regular USD. Their choice stays hidden from employers.
+          <p className="text-lg sm:text-xl text-gray-600 mb-4 max-w-2xl mx-auto">
+            Arc Payroll gives employees the freedom to move between value preservation and yield, 
+            whenever their priorities change.
+          </p>
+          <p className="text-xl sm:text-2xl font-medium text-gray-900 mb-10 italic">
+            People change. So should how they get paid.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
