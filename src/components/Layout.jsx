@@ -9,7 +9,7 @@ export default function Layout({ children }) {
   const { walletAddress, balances } = useApp()
   const location = useLocation()
 
-  const isBusinessView = location.pathname.startsWith('/business')
+  const isBusinessView = location.pathname.startsWith('/business') || location.pathname.startsWith('/dashboard')
   const isStaffView = location.pathname.startsWith('/staff')
   const [addressCopied, setAddressCopied] = useState(false)
 
