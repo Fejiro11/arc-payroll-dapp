@@ -1,7 +1,15 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { usePrivy } from '@privy-io/react-auth'
-import { Building2, User, ArrowRight, Shield, Zap, TrendingUp } from 'lucide-react'
+import { 
+  Building2, 
+  User,
+  ArrowRight,
+  Shield,
+  Zap,
+  TrendingUp,
+  Github
+} from 'lucide-react'
 
 export default function LandingPage() {
   const { login, authenticated } = usePrivy()
@@ -133,6 +141,16 @@ export default function LandingPage() {
               ronnie_thedev
             </a>
             <span>on Arc Testnet</span>
+            <span className="text-gray-300">|</span>
+            <a
+              href="https://github.com/Fejiro11/arc-payroll-dapp"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center space-x-1 hover:text-gray-700 transition-colors"
+            >
+              <Github className="w-4 h-4" />
+              <span>GitHub</span>
+            </a>
           </div>
           <div className="flex items-center space-x-4 text-sm text-gray-500">
             <a
