@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { usePrivy } from '@privy-io/react-auth'
 import { useApp } from '../context/AppContext'
 import { 
@@ -11,12 +11,16 @@ import {
   Calendar,
   DollarSign,
   ArrowRight,
-  Info
+  Info,
+  LogOut
 } from 'lucide-react'
 
 export default function StaffDashboard() {
+  const navigate = useNavigate()
   const { authenticated, login } = usePrivy()
-  const { staffData, balances, walletAddress, updateStaffPreference, loadStaffData } = useApp()
+  const { staffData, balances, walletAddress, updateStaffPreference, loadStaffData, leaveJob } = useApp()
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
+  const [isLeaving, setIsLeaving] = useState(false)
 
   // Load staff data when wallet connects
   useEffect(() => {
@@ -217,6 +221,60 @@ export default function StaffDashboard() {
           </div>
         )}
       </div>
+
+      {/* Leave Job Section */}
+      <div className="bg-white rounded-xl border border-red-200 p-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-1">Leave Job</h3>
+            <p className="text-sm text-gray-600">
+              Leave your current position at {staffData.employerName}. This will remove you from their payroll.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowLeaveConfirm(true)}
+            className="flex items-center space-x-2 px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Leave</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Leave Confirmation Modal */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Leave {staffData.employerName}?</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to leave? You will be removed from their payroll and will need a new invite code to rejoin or join another business.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1 py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setIsLeaving(true)
+                  const success = await leaveJob()
+                  setIsLeaving(false)
+                  setShowLeaveConfirm(false)
+                  if (success) {
+                    navigate('/staff/register')
+                  }
+                }}
+                disabled={isLeaving}
+                className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {isLeaving ? 'Leaving...' : 'Yes, Leave'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

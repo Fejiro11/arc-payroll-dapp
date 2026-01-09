@@ -45,13 +45,13 @@ export default function StaffRegister() {
       return
     }
 
-    const success = await registerWithCode(inviteCode.toUpperCase(), name.trim())
+    const result = await registerWithCode(inviteCode.toUpperCase(), name.trim())
     
-    if (success) {
+    if (result.success) {
       setStep(3)
       setTimeout(() => navigate('/staff'), 2000)
     } else {
-      setError('Invalid or expired invite code. Please check with your employer.')
+      setError(result.error || 'Invalid or expired invite code. Please check with your employer.')
     }
     
     setLoading(false)

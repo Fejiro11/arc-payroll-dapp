@@ -78,6 +78,34 @@ export function AppProvider({ children }) {
     return code
   }
 
+  // Check if wallet already has a business
+  const checkExistingBusiness = async (wallet) => {
+    try {
+      const { data: business } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('wallet_address', wallet)
+        .single()
+      return business
+    } catch (error) {
+      return null
+    }
+  }
+
+  // Check if wallet is already registered as staff
+  const checkExistingStaff = async (wallet) => {
+    try {
+      const { data: staff } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('wallet_address', wallet)
+        .single()
+      return staff
+    } catch (error) {
+      return null
+    }
+  }
+
   // Load or create business from Supabase
   const loadOrCreateBusiness = async (wallet, name) => {
     try {
@@ -178,6 +206,15 @@ export function AppProvider({ children }) {
 
   const registerWithCode = async (code, name) => {
     try {
+      const staffWallet = wallets[0]?.address
+      if (!staffWallet) return { success: false, error: 'No wallet connected' }
+
+      // Check if already registered as staff
+      const existingStaff = await checkExistingStaff(staffWallet)
+      if (existingStaff) {
+        return { success: false, error: 'You are already registered with a business. Leave your current job first.' }
+      }
+
       // Find the invite code in Supabase
       const { data: inviteCode, error: codeError } = await supabase
         .from('invite_codes')
@@ -187,12 +224,8 @@ export function AppProvider({ children }) {
         .single()
 
       if (codeError || !inviteCode) {
-        console.error('Invalid invite code:', codeError)
-        return false
+        return { success: false, error: 'Invalid or expired invite code. Please check with your employer.' }
       }
-
-      const staffWallet = wallets[0]?.address
-      if (!staffWallet) return false
 
       // Create staff record
       const { data: newStaff, error: staffError } = await supabase
@@ -210,7 +243,7 @@ export function AppProvider({ children }) {
 
       if (staffError) {
         console.error('Error creating staff:', staffError)
-        return false
+        return { success: false, error: 'Failed to register. Please try again.' }
       }
 
       // Mark invite code as used
@@ -229,9 +262,36 @@ export function AppProvider({ children }) {
         lastPayment: null,
       })
 
-      return true
+      return { success: true }
     } catch (error) {
       console.error('Error registering with code:', error)
+      return { success: false, error: 'An error occurred. Please try again.' }
+    }
+  }
+
+  // Leave current job (for staff)
+  const leaveJob = async () => {
+    try {
+      if (!staffData.id) return false
+
+      await supabase
+        .from('staff')
+        .delete()
+        .eq('id', staffData.id)
+
+      setStaffData({
+        id: null,
+        inviteCode: '',
+        employerName: '',
+        status: 'pending',
+        salary: '0',
+        preferUSYC: false,
+        lastPayment: null,
+      })
+
+      return true
+    } catch (error) {
+      console.error('Error leaving job:', error)
       return false
     }
   }
@@ -342,12 +402,15 @@ export function AppProvider({ children }) {
     loadOrCreateBusiness,
     loadBusinessData,
     loadStaffData,
+    checkExistingBusiness,
+    checkExistingStaff,
     createInviteCode,
     registerWithCode,
     approveStaff,
     deleteStaff,
     updateStaffSalary,
     updateStaffPreference,
+    leaveJob,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

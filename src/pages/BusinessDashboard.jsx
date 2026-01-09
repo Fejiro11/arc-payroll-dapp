@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { usePrivy } from '@privy-io/react-auth'
 import { useApp } from '../context/AppContext'
 import { createPayrollService } from '../services/payroll'
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react'
 
 export default function BusinessDashboard() {
+  const navigate = useNavigate()
   const { authenticated, login } = usePrivy()
   const { 
     businessData, 
@@ -33,6 +35,7 @@ export default function BusinessDashboard() {
     setLoading,
     getSigner,
     fetchBalances,
+    checkExistingBusiness,
     loadOrCreateBusiness,
     businessId
   } = useApp()
@@ -49,25 +52,27 @@ export default function BusinessDashboard() {
   const [payrollError, setPayrollError] = useState(null)
   const [addressCopied, setAddressCopied] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Business name input for first-time setup
-  const [businessName, setBusinessName] = useState(businessData.name)
-  const [isSettingUp, setIsSettingUp] = useState(!businessData.name)
-
-  // Load existing business data when wallet connects
+  // Load existing business data when wallet connects, redirect if no business
   useEffect(() => {
-    if (walletAddress && authenticated) {
-      loadOrCreateBusiness(walletAddress, null)
+    const loadBusiness = async () => {
+      if (walletAddress && authenticated) {
+        setIsLoading(true)
+        const business = await checkExistingBusiness(walletAddress)
+        if (business) {
+          await loadOrCreateBusiness(walletAddress, null)
+        } else {
+          // No business found, redirect to setup
+          navigate('/business')
+        }
+        setIsLoading(false)
+      } else if (authenticated === false) {
+        setIsLoading(false)
+      }
     }
+    loadBusiness()
   }, [walletAddress, authenticated])
-
-  const handleSetupBusiness = async (e) => {
-    e.preventDefault()
-    if (businessName.trim() && walletAddress) {
-      await loadOrCreateBusiness(walletAddress, businessName.trim())
-      setIsSettingUp(false)
-    }
-  }
 
   const handleGenerateCode = async () => {
     const code = await createInviteCode()
@@ -215,31 +220,10 @@ export default function BusinessDashboard() {
     )
   }
 
-  if (isSettingUp) {
+  if (isLoading) {
     return (
-      <div className="max-w-md mx-auto mt-12">
-        <div className="bg-white rounded-xl border border-gray-200 p-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Set Up Your Business</h2>
-          <p className="text-gray-600 mb-6">
-            Enter your business name to get started with Arc Payroll.
-          </p>
-          <form onSubmit={handleSetupBusiness}>
-            <input
-              type="text"
-              value={businessName}
-              onChange={(e) => setBusinessName(e.target.value)}
-              placeholder="e.g., Acme Corp"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none mb-4"
-            />
-            <button
-              type="submit"
-              disabled={!businessName.trim()}
-              className="w-full py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Continue
-            </button>
-          </form>
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     )
   }
