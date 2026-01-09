@@ -201,7 +201,7 @@ export function AppProvider({ children }) {
           wallet_address: staffWallet,
           name,
           business_id: inviteCode.business_id,
-          salary: '3000',
+          salary: '1',
           status: 'pending',
           prefer_usyc: false,
         })
@@ -224,7 +224,7 @@ export function AppProvider({ children }) {
         inviteCode: code,
         employerName: inviteCode.businesses?.name || 'Unknown',
         status: 'pending',
-        salary: '3000',
+        salary: '1',
         preferUSYC: false,
         lastPayment: null,
       })
