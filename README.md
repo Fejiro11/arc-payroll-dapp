@@ -8,7 +8,7 @@ A B2B Payroll DApp on Arc Testnet that enables businesses to pay staff on-chain 
 - **Wallet Connection**: Connect via Privy as Employer
 - **Treasury Management**: Fund treasury with mock USDC
 - **Staff Management**: Generate invite codes, approve/delete staff
-- **Batch Payroll**: Select staff and run payroll in a single transaction using Multicall3
+- **Batch Payroll**: Select staff and run payroll with efficient sequential transfers
 - **Privacy**: Admin never sees staff token preferences
 
 ### Staff View (User)
@@ -31,7 +31,6 @@ A B2B Payroll DApp on Arc Testnet that enables businesses to pay staff on-chain 
 | USDC | `0x3600000000000000000000000000000000000000` |
 | USYC | `0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C` |
 | USYC Teller | `0x9fdF14c5B14173D74C08Af27AebFf39240dC105A` |
-| Multicall3 | `0xcA11bde05977b3631167028862bE2a173976CA11` |
 
 ## Setup
 

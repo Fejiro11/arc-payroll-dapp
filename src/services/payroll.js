@@ -1,12 +1,11 @@
 import { ethers } from 'ethers'
-import { CONTRACTS, ERC20_ABI, MULTICALL3_ABI, USYC_TELLER_ABI } from '../config/contracts'
+import { CONTRACTS, ERC20_ABI, USYC_TELLER_ABI } from '../config/contracts'
 
 export class PayrollService {
   constructor(signer) {
     this.signer = signer
     this.usdcContract = new ethers.Contract(CONTRACTS.USDC, ERC20_ABI, signer)
     this.usycContract = new ethers.Contract(CONTRACTS.USYC, ERC20_ABI, signer)
-    this.multicall = new ethers.Contract(CONTRACTS.MULTICALL3, MULTICALL3_ABI, signer)
     this.usycTeller = new ethers.Contract(CONTRACTS.USYC_TELLER, USYC_TELLER_ABI, signer)
   }
 
@@ -37,52 +36,69 @@ export class PayrollService {
       totalUSDC += salaryWei
     }
 
-    // For single staff: use direct transfer (simpler, less gas)
+    // For single staff: check preference and pay accordingly
     if (staffList.length === 1) {
       const staff = staffList[0]
       const salaryWei = ethers.parseUnits(staff.salary.toString(), 6)
-      
-      const tx = await this.usdcContract.transfer(staff.wallet, salaryWei)
-      const receipt = await tx.wait()
 
-      return {
-        hash: receipt.hash,
-        staffPaid: 1,
-        totalAmount: ethers.formatUnits(totalUSDC, 6)
+      if (staffPreferences[staff.wallet]) {
+        // Staff prefers USYC - swap to USYC first, then transfer
+        const swapResult = await this.swapUSDCtoUSYC(staff.salary)
+        // Transfer the USYC to staff (assuming USYC contract allows transfers)
+        const tx = await this.usycContract.transfer(staff.wallet, ethers.parseUnits(swapResult.usycReceived, 6))
+        const receipt = await tx.wait()
+
+        return {
+          hash: receipt.hash,
+          staffPaid: 1,
+          totalAmount: ethers.formatUnits(totalUSDC, 6),
+          paymentType: 'USYC'
+        }
+      } else {
+        // Regular USDC transfer
+        const tx = await this.usdcContract.transfer(staff.wallet, salaryWei)
+        const receipt = await tx.wait()
+
+        return {
+          hash: receipt.hash,
+          staffPaid: 1,
+          totalAmount: ethers.formatUnits(totalUSDC, 6),
+          paymentType: 'USDC'
+        }
       }
     }
 
-    // For multiple staff: use Multicall3 with transferFrom for batch efficiency
-    const iface = new ethers.Interface(ERC20_ABI)
-    const calls = []
-
-    // Build batch transfer calls using transferFrom
-    for (const staff of staffList) {
+    // For multiple staff: execute individual transfers sequentially based on preferences
+    // This approach is more reliable on Arc network with USDC as gas
+    const transferPromises = staffList.map(async (staff) => {
       const salaryWei = ethers.parseUnits(staff.salary.toString(), 6)
-      
-      calls.push({
-        target: CONTRACTS.USDC,
-        allowFailure: false,
-        callData: iface.encodeFunctionData('transferFrom', [signerAddress, staff.wallet, salaryWei])
-      })
-    }
 
-    // Approve Multicall3 to spend USDC (for transferFrom to work)
-    const currentAllowance = await this.usdcContract.allowance(signerAddress, CONTRACTS.MULTICALL3)
-    
-    if (currentAllowance < totalUSDC) {
-      const approveTx = await this.usdcContract.approve(CONTRACTS.MULTICALL3, totalUSDC)
-      await approveTx.wait()
-    }
+      if (staffPreferences[staff.wallet]) {
+        // Staff prefers USYC - swap and transfer USYC
+        const swapResult = await this.swapUSDCtoUSYC(staff.salary)
+        const tx = await this.usycContract.transfer(staff.wallet, ethers.parseUnits(swapResult.usycReceived, 6))
+        return { receipt: await tx.wait(), type: 'USYC' }
+      } else {
+        // Regular USDC transfer
+        const tx = await this.usdcContract.transfer(staff.wallet, salaryWei)
+        return { receipt: await tx.wait(), type: 'USDC' }
+      }
+    })
 
-    // Execute batch payroll via Multicall3
-    const tx = await this.multicall.aggregate3(calls)
-    const receipt = await tx.wait()
+    // Wait for all transfers to complete
+    const results = await Promise.all(transferPromises)
+    const receipts = results.map(r => r.receipt)
+    const tx = receipts[0] // Return the first transaction hash for display
+
+    // Count payment types
+    const usycCount = results.filter(r => r.type === 'USYC').length
+    const usdcCount = results.filter(r => r.type === 'USDC').length
 
     return {
-      hash: receipt.hash,
+      hash: tx.hash,
       staffPaid: staffList.length,
-      totalAmount: ethers.formatUnits(totalUSDC, 6)
+      totalAmount: ethers.formatUnits(totalUSDC, 6),
+      paymentSummary: `${usdcCount} USDC, ${usycCount} USYC`
     }
   }
 

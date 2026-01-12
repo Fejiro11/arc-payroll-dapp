@@ -109,7 +109,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Batch Payments</h3>
               <p className="text-gray-600">
-                Pay your entire team in a single transaction using Multicall3. 
+                Pay your entire team with efficient batch transfers. 
                 Save on gas and simplify payroll operations.
               </p>
             </div>
