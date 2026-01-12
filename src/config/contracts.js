@@ -5,6 +5,7 @@ export const CONTRACTS = {
   USYC_ENTITLEMENTS: '0xcc205224862c7641930c87679e98999d23c26113',
   MULTICALL3: '0xcA11bde05977b3631167028862bE2a173976CA11',
   PERMIT2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
+  BATCH_PAYROLL: '', // Deploy contract and add address here
 }
 
 export const ARC_TESTNET = {
@@ -31,4 +32,11 @@ export const MULTICALL3_ABI = [
 export const USYC_TELLER_ABI = [
   'function deposit(uint256 depositAmount, uint256 minimumMint) external returns (uint256 shares)',
   'function previewDeposit(uint256 assets) external view returns (uint256)',
+]
+
+export const BATCH_PAYROLL_ABI = [
+  'function executeBatchPayroll(address token, tuple(address recipient, uint256 amount)[] payments) external',
+  'function emergencyWithdraw(address token) external',
+  'event PayrollExecuted(address indexed employer, uint256 staffCount, uint256 totalAmount)',
+  'event PaymentSent(address indexed recipient, uint256 amount)',
 ]

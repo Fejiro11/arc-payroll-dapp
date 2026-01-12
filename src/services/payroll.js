@@ -1,5 +1,5 @@
 import { ethers } from 'ethers'
-import { CONTRACTS, ERC20_ABI, USYC_TELLER_ABI } from '../config/contracts'
+import { CONTRACTS, ERC20_ABI, USYC_TELLER_ABI, BATCH_PAYROLL_ABI } from '../config/contracts'
 
 export class PayrollService {
   constructor(signer) {
@@ -7,6 +7,9 @@ export class PayrollService {
     this.usdcContract = new ethers.Contract(CONTRACTS.USDC, ERC20_ABI, signer)
     this.usycContract = new ethers.Contract(CONTRACTS.USYC, ERC20_ABI, signer)
     this.usycTeller = new ethers.Contract(CONTRACTS.USYC_TELLER, USYC_TELLER_ABI, signer)
+    this.batchPayroll = CONTRACTS.BATCH_PAYROLL 
+      ? new ethers.Contract(CONTRACTS.BATCH_PAYROLL, BATCH_PAYROLL_ABI, signer)
+      : null
   }
 
   async getUSDCBalance(address) {
@@ -28,6 +31,56 @@ export class PayrollService {
 
   async runPayroll(staffList, staffPreferences) {
     const signerAddress = await this.signer.getAddress()
+    
+    // If batch contract is deployed, use it for efficient batch transfers
+    if (this.batchPayroll && staffList.length > 1) {
+      return await this.runBatchPayroll(staffList, staffPreferences)
+    }
+    
+    // Fallback to individual transfers for single staff or if contract not deployed
+    return await this.runIndividualPayroll(staffList, staffPreferences)
+  }
+
+  async runBatchPayroll(staffList, staffPreferences) {
+    const signerAddress = await this.signer.getAddress()
+    let totalUSDC = 0n
+
+    // Build payment array for batch contract
+    const payments = []
+    for (const staff of staffList) {
+      const salaryWei = ethers.parseUnits(staff.salary.toString(), 6)
+      payments.push({
+        recipient: staff.wallet,
+        amount: salaryWei
+      })
+      totalUSDC += salaryWei
+    }
+
+    // Check current allowance
+    const currentAllowance = await this.usdcContract.allowance(signerAddress, CONTRACTS.BATCH_PAYROLL)
+    
+    // Approve batch contract if needed (only once or when allowance is low)
+    if (currentAllowance < totalUSDC) {
+      console.log('Approving batch contract to spend USDC...')
+      const approveTx = await this.usdcContract.approve(CONTRACTS.BATCH_PAYROLL, totalUSDC)
+      await approveTx.wait()
+      console.log('Approval confirmed')
+    }
+
+    // Execute batch payroll - SINGLE TRANSACTION for all staff!
+    console.log(`Executing batch payroll for ${staffList.length} staff...`)
+    const tx = await this.batchPayroll.executeBatchPayroll(CONTRACTS.USDC, payments)
+    const receipt = await tx.wait()
+
+    return {
+      hash: receipt.hash || receipt.transactionHash,
+      staffPaid: staffList.length,
+      totalAmount: ethers.formatUnits(totalUSDC, 6),
+      paymentSummary: `Batch transfer to ${staffList.length} staff`
+    }
+  }
+
+  async runIndividualPayroll(staffList, staffPreferences) {
     let totalUSDC = 0n
 
     // Calculate total USDC needed
@@ -36,15 +89,13 @@ export class PayrollService {
       totalUSDC += salaryWei
     }
 
-    // For single staff: check preference and pay accordingly
+    // For single staff: direct transfer
     if (staffList.length === 1) {
       const staff = staffList[0]
       const salaryWei = ethers.parseUnits(staff.salary.toString(), 6)
 
       if (staffPreferences[staff.wallet]) {
-        // Staff prefers USYC - swap to USYC first, then transfer
         const swapResult = await this.swapUSDCtoUSYC(staff.salary)
-        // Transfer the USYC to staff (assuming USYC contract allows transfers)
         const tx = await this.usycContract.transfer(staff.wallet, ethers.parseUnits(swapResult.usycReceived, 6))
         const receipt = await tx.wait()
 
@@ -55,7 +106,6 @@ export class PayrollService {
           paymentType: 'USYC'
         }
       } else {
-        // Regular USDC transfer
         const tx = await this.usdcContract.transfer(staff.wallet, salaryWei)
         const receipt = await tx.wait()
 
@@ -68,29 +118,23 @@ export class PayrollService {
       }
     }
 
-    // For multiple staff: execute individual transfers sequentially based on preferences
-    // This approach is more reliable on Arc network with USDC as gas
-    // Sequential execution avoids nonce collisions
+    // For multiple staff without batch contract: sequential transfers
     const results = []
     for (const staff of staffList) {
       const salaryWei = ethers.parseUnits(staff.salary.toString(), 6)
       
       if (staffPreferences[staff.wallet]) {
-        // Staff prefers USYC - swap and transfer USYC
         const swapResult = await this.swapUSDCtoUSYC(staff.salary)
         const tx = await this.usycContract.transfer(staff.wallet, ethers.parseUnits(swapResult.usycReceived, 6))
         results.push({ receipt: await tx.wait(), type: 'USYC' })
       } else {
-        // Regular USDC transfer
         const tx = await this.usdcContract.transfer(staff.wallet, salaryWei)
         results.push({ receipt: await tx.wait(), type: 'USDC' })
       }
     }
-    // Count payment types
+
     const usycCount = results.filter(r => r.type === 'USYC').length
     const usdcCount = results.filter(r => r.type === 'USDC').length
-
-    // Get transaction hash from first receipt
     const firstReceipt = results[0]?.receipt
     const txHash = firstReceipt?.hash || firstReceipt?.transactionHash || '0x'
 
