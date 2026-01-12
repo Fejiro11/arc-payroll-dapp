@@ -70,23 +70,22 @@ export class PayrollService {
 
     // For multiple staff: execute individual transfers sequentially based on preferences
     // This approach is more reliable on Arc network with USDC as gas
-    const transferPromises = staffList.map(async (staff) => {
+    // Sequential execution avoids nonce collisions
+    const results = []
+    for (const staff of staffList) {
       const salaryWei = ethers.parseUnits(staff.salary.toString(), 6)
-
+      
       if (staffPreferences[staff.wallet]) {
         // Staff prefers USYC - swap and transfer USYC
         const swapResult = await this.swapUSDCtoUSYC(staff.salary)
         const tx = await this.usycContract.transfer(staff.wallet, ethers.parseUnits(swapResult.usycReceived, 6))
-        return { receipt: await tx.wait(), type: 'USYC' }
+        results.push({ receipt: await tx.wait(), type: 'USYC' })
       } else {
         // Regular USDC transfer
         const tx = await this.usdcContract.transfer(staff.wallet, salaryWei)
-        return { receipt: await tx.wait(), type: 'USDC' }
+        results.push({ receipt: await tx.wait(), type: 'USDC' })
       }
-    })
-
-    // Wait for all transfers to complete
-    const results = await Promise.all(transferPromises)
+    }
     const receipts = results.map(r => r.receipt)
     const tx = receipts[0] // Return the first transaction hash for display
 
