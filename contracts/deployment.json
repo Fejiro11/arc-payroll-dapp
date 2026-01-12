@@ -1,0 +1,15 @@
+{
+  "address": "0xB68fb9aeDAA39eE39Fa4EC15ce9BbD757DF50d32",
+  "network": "Arc Testnet",
+  "chainId": 5042002,
+  "deployer": "User deployed via Remix IDE",
+  "timestamp": "2026-01-12",
+  "explorerUrl": "https://testnet.arcscan.app/address/0xB68fb9aeDAA39eE39Fa4EC15ce9BbD757DF50d32",
+  "contract": "BatchPayroll",
+  "features": [
+    "Batch payroll transfers",
+    "Single approval for multiple staff",
+    "Emergency token recovery",
+    "Event emissions for tracking"
+  ]
+}
