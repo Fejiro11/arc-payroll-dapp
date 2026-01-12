@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 interface IERC20 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
     function transfer(address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
 }
 
 contract BatchPayroll {
@@ -65,9 +66,9 @@ contract BatchPayroll {
      */
     function emergencyWithdraw(address token) external {
         require(msg.sender == owner, "Only owner");
-        uint256 balance = IERC20(token).balanceOf(address(this));
-        if (balance > 0) {
-            IERC20(token).transfer(owner, balance);
-        }
+        IERC20 tokenContract = IERC20(token);
+        uint256 balance = tokenContract.balanceOf(address(this));
+        require(balance > 0, "No balance to withdraw");
+        require(tokenContract.transfer(owner, balance), "Transfer failed");
     }
 }
