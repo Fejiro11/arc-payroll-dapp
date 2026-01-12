@@ -86,15 +86,16 @@ export class PayrollService {
         results.push({ receipt: await tx.wait(), type: 'USDC' })
       }
     }
-    const receipts = results.map(r => r.receipt)
-    const tx = receipts[0] // Return the first transaction hash for display
-
     // Count payment types
     const usycCount = results.filter(r => r.type === 'USYC').length
     const usdcCount = results.filter(r => r.type === 'USDC').length
 
+    // Get transaction hash from first receipt
+    const firstReceipt = results[0]?.receipt
+    const txHash = firstReceipt?.hash || firstReceipt?.transactionHash || '0x'
+
     return {
-      hash: tx.hash,
+      hash: txHash,
       staffPaid: staffList.length,
       totalAmount: ethers.formatUnits(totalUSDC, 6),
       paymentSummary: `${usdcCount} USDC, ${usycCount} USYC`

@@ -7,19 +7,22 @@ import BusinessSetup from './pages/BusinessSetup'
 import BusinessDashboard from './pages/BusinessDashboard'
 import StaffDashboard from './pages/StaffDashboard'
 import StaffRegister from './pages/StaffRegister'
+import ErrorBoundary from './components/ErrorBoundary'
 
 function App() {
   return (
-    <AppProvider>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/business" element={<Layout><BusinessSetup /></Layout>} />
-        <Route path="/dashboard" element={<Layout><BusinessDashboard /></Layout>} />
-        <Route path="/staff" element={<Layout><StaffDashboard /></Layout>} />
-        <Route path="/staff/register" element={<Layout><StaffRegister /></Layout>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/business" element={<Layout><BusinessSetup /></Layout>} />
+          <Route path="/dashboard" element={<Layout><BusinessDashboard /></Layout>} />
+          <Route path="/staff" element={<Layout><StaffDashboard /></Layout>} />
+          <Route path="/staff/register" element={<Layout><StaffRegister /></Layout>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AppProvider>
+    </ErrorBoundary>
   )
 }
 

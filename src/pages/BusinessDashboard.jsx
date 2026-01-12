@@ -128,9 +128,9 @@ export default function BusinessDashboard() {
       const result = await payrollService.runPayroll(staffToPayList, staffPreferences)
       
       setPayrollResult({
-        hash: result.hash,
-        staffPaid: result.staffPaid,
-        totalAmount: result.totalAmount
+        hash: result?.hash || '0x',
+        staffPaid: result?.staffPaid || 0,
+        totalAmount: result?.totalAmount || '0'
       })
       
       // Update last payment for selected staff
