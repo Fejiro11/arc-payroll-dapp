@@ -70,10 +70,11 @@ export class PayrollService {
     // Execute batch payroll - SINGLE TRANSACTION for all staff!
     console.log(`Executing batch payroll for ${staffList.length} staff...`)
     const tx = await this.batchPayroll.executeBatchPayroll(CONTRACTS.USDC, payments)
+    const txHash = tx.hash // Get hash from transaction before waiting
     const receipt = await tx.wait()
 
     return {
-      hash: receipt.hash || receipt.transactionHash,
+      hash: txHash,
       staffPaid: staffList.length,
       totalAmount: ethers.formatUnits(totalUSDC, 6),
       paymentSummary: `Batch transfer to ${staffList.length} staff`
@@ -97,20 +98,22 @@ export class PayrollService {
       if (staffPreferences[staff.wallet]) {
         const swapResult = await this.swapUSDCtoUSYC(staff.salary)
         const tx = await this.usycContract.transfer(staff.wallet, ethers.parseUnits(swapResult.usycReceived, 6))
-        const receipt = await tx.wait()
+        const txHash = tx.hash
+        await tx.wait()
 
         return {
-          hash: receipt.hash,
+          hash: txHash,
           staffPaid: 1,
           totalAmount: ethers.formatUnits(totalUSDC, 6),
           paymentType: 'USYC'
         }
       } else {
         const tx = await this.usdcContract.transfer(staff.wallet, salaryWei)
-        const receipt = await tx.wait()
+        const txHash = tx.hash
+        await tx.wait()
 
         return {
-          hash: receipt.hash,
+          hash: txHash,
           staffPaid: 1,
           totalAmount: ethers.formatUnits(totalUSDC, 6),
           paymentType: 'USDC'
@@ -126,17 +129,20 @@ export class PayrollService {
       if (staffPreferences[staff.wallet]) {
         const swapResult = await this.swapUSDCtoUSYC(staff.salary)
         const tx = await this.usycContract.transfer(staff.wallet, ethers.parseUnits(swapResult.usycReceived, 6))
-        results.push({ receipt: await tx.wait(), type: 'USYC' })
+        const txHash = tx.hash
+        await tx.wait()
+        results.push({ hash: txHash, type: 'USYC' })
       } else {
         const tx = await this.usdcContract.transfer(staff.wallet, salaryWei)
-        results.push({ receipt: await tx.wait(), type: 'USDC' })
+        const txHash = tx.hash
+        await tx.wait()
+        results.push({ hash: txHash, type: 'USDC' })
       }
     }
 
     const usycCount = results.filter(r => r.type === 'USYC').length
     const usdcCount = results.filter(r => r.type === 'USDC').length
-    const firstReceipt = results[0]?.receipt
-    const txHash = firstReceipt?.hash || firstReceipt?.transactionHash || '0x'
+    const txHash = results[0]?.hash || '0x'
 
     return {
       hash: txHash,
